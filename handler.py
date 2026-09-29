@@ -1,5 +1,7 @@
 import base64
+import glob
 import os
+import shutil
 import subprocess
 import tempfile
 import urllib.request
@@ -21,6 +23,17 @@ os.environ.setdefault("HF_TOKEN", HF_TOKEN)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 pipeline = Pipeline.from_pretrained(MODEL_ID, token=HF_TOKEN)
 pipeline.to(device)
+
+
+def _ffmpeg():
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    for pattern in ("C:/ffmpeg/**/bin/ffmpeg.exe", "C:/Program Files/ffmpeg/**/ffmpeg.exe"):
+        matches = sorted(glob.glob(pattern, recursive=True))
+        if matches:
+            return matches[0]
+    raise RuntimeError("ffmpeg not found. Install it or set it on PATH to read mp3/m4a files.")
 
 
 def _download(url):
@@ -56,7 +69,7 @@ def _load_waveform(path):
         except Exception:
             wav_path = path + ".wav"
             subprocess.run(
-                ["ffmpeg", "-y", "-i", path, "-ac", "1", wav_path],
+                [_ffmpeg(), "-y", "-i", path, "-ac", "1", wav_path],
                 check=True,
                 capture_output=True,
             )
